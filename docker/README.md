@@ -155,14 +155,17 @@ of the repository owner, `ghcr.io/<owner>/noscribe`:
 | Trigger                                  | Tags                 |
 |------------------------------------------|----------------------|
 | push of a release tag `v<version>`, e.g. `v0.8.1` | `0.8.1`, plus `latest` for the newest stable release |
+| push of an image revision tag `v<version>-r<N>`, e.g. `v0.8.1-r2` | `0.8.1-r2`, plus `0.8.1` for the highest revision of 0.8.1 and `latest` for the newest stable release |
 | manual run with "push" ticked            | `sha-<commit>`, plus `edge` on `main`; on a release tag, also its version and eligible `latest` |
 | manual run without "push"                | nothing, build and test only |
 
 The "push" checkbox also applies when manually running on a release tag.
 `latest` is reserved for the highest numeric stable version and image revision
 (`-r<N>`) currently tagged in the repository. Prerelease and flavor tags do
-not receive it. Remote tags are checked again immediately before pushing
-`latest`, so rebuilding an older release cannot replace a newer one.
+not receive it. Likewise, `<version>` moves only to the highest image revision
+of that version. Remote tags are checked again immediately before pushing
+`latest` or `<version>`, so rebuilding an older release or revision cannot
+replace a newer one.
 
 Docker Hub is an optional second target: once the repository secret
 `DOCKERHUB_TOKEN` (a Docker Hub access token) exists, the same tags are also
@@ -175,8 +178,8 @@ made public once in its package settings. The GPU variant is not published.
 ## Image tags
 
 The naming scheme below is the proposed one for images built from this
-Dockerfile, including later revisions and flavors; the workflow above
-currently uses only the version, `latest` and `edge`.
+Dockerfile, including flavors; the workflow above publishes the default
+flavor only.
 
 ```
 <noScribe version>[-r<N>][-<flavor>]
@@ -211,8 +214,9 @@ Use a full `X.Y.Z-rN[-flavor]` tag wherever reproducibility matters.
 Flavors are not combined (`-cuda-gui`) unless there is a concrete need; every
 combination multiplies the build matrix.
 
-A release is a git tag `v<noScribe version>-r<N>` (for example `v0.7.2-r1`);
-the image tag is the git tag without the `v`. Branch builds are published only
+A release is a git tag `v<noScribe version>` (for example `v0.7.2`), and a
+later image revision of it is `v<noScribe version>-r<N>` (for example
+`v0.7.2-r1`); the image tag is the git tag without the `v`. Branch builds are published only
 when manually requested with "push"; pull-request builds are never pushed.
 
 ## Python dependencies
@@ -265,4 +269,4 @@ image built here.
 | `docker/requirements-cu128.lock` | the same for the GPU (CUDA) variant             |
 | `docker/update-lock.sh`          | regenerates the lock files                      |
 | `.github/workflows/docker-image.yml` | builds, tests and publishes the CPU image   |
-| `docker/image_release.py`        | checks which stable release may publish `latest` |
+| `docker/image_release.py`        | checks which release may publish `latest` and `<version>` |

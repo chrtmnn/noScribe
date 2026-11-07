@@ -32,6 +32,21 @@ def test_latest_stable_release(ref, tags, expected):
     assert release.is_latest_release(ref, tags) is expected
 
 
+@pytest.mark.parametrize("ref,tags,expected", [
+    ("refs/tags/v0.8-r2", ["v0.8", "v0.8-r1", "v0.8-r2"], "0.8"),
+    ("refs/tags/v0.8-r1", ["v0.8", "v0.8-r1", "v0.8-r2"], ""),
+    ("refs/tags/v0.8.1-r2", ["v0.8.1", "v0.8.1-r2", "v0.9"], "0.8.1"),
+    ("refs/tags/v0.8-r2", ["v0.8-r2", "v0.8.0-r3"], ""),
+    ("refs/tags/v0.8-r10", ["v0.8-r2", "v0.8-r10"], "0.8"),
+    ("refs/tags/v0.8", ["v0.8"], ""),
+    ("refs/tags/v0.9-rc1", ["v0.9-rc1"], ""),
+    ("refs/tags/v0.8-r2", [], ""),
+    ("refs/heads/v0.8-r2", ["v0.8-r2"], ""),
+])
+def test_version_tag_follows_highest_revision(ref, tags, expected):
+    assert release.version_tag(ref, tags) == expected
+
+
 def test_workflow_output_uses_remote_tags(monkeypatch, capsys):
     monkeypatch.setenv("GITHUB_REF", "refs/tags/v0.8")
     refs = iter(["abc\trefs/tags/v0.8\n", "abc\trefs/tags/v0.8\ndef\trefs/tags/v0.9\n"])
@@ -43,9 +58,9 @@ def test_workflow_output_uses_remote_tags(monkeypatch, capsys):
 
     monkeypatch.setattr(release.subprocess, "check_output", remote_tags)
     release.main()
-    assert capsys.readouterr().out == "latest=true\n"
+    assert capsys.readouterr().out == "latest=true\nversion=\n"
     release.main()
-    assert capsys.readouterr().out == "latest=false\n"
+    assert capsys.readouterr().out == "latest=false\nversion=\n"
 
 
 def test_remote_failure_stops_publication(monkeypatch, capsys):
@@ -66,4 +81,12 @@ def test_non_release_refs_do_not_query_remote(ref, monkeypatch, capsys):
     monkeypatch.setattr(release.subprocess, "check_output",
                         lambda *args, **kwargs: pytest.fail("Unexpected remote query"))
     release.main()
-    assert capsys.readouterr().out == "latest=false\n"
+    assert capsys.readouterr().out == "latest=false\nversion=\n"
+
+
+def test_revision_tag_output(monkeypatch, capsys):
+    monkeypatch.setenv("GITHUB_REF", "refs/tags/v0.8-r2")
+    monkeypatch.setattr(release.subprocess, "check_output",
+                        lambda *args, **kwargs: "a\trefs/tags/v0.8\nb\trefs/tags/v0.8-r2\n")
+    release.main()
+    assert capsys.readouterr().out == "latest=true\nversion=0.8\n"
